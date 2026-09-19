@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Manager</title>
+<style>
+  :root{
+    --bg:#0E2A20; --bg2:#123526; --bg3:#0A2019;
+    --ink:#1B1B18; --ink-soft:#4A4636;
+    --parchment:#F4EEDD; --parchment-dim:#EAE2C8;
+    --brass:#C6A15B; --brass-bright:#E4C27E;
+    --red-flag:#A6342E; --green-flag:#3F7A4F; --white-flag:#EFE9D8;
+    --line: rgba(198,161,91,0.35);
+    --shadow: 0 10px 28px rgba(0,0,0,0.38);
+    --font-d:"Iowan Old Style","Palatino Linotype","URW Palladio L","P052",Georgia,serif;
+    --font-b:"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --font-m:"Consolas","SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--parchment);font-family:var(--font-b);}
+  body{min-height:100vh;}
+  ::selection{background:var(--brass);color:var(--bg3);}
+  a{color:inherit;}
+  button{font-family:var(--font-b);cursor:pointer;}
+  input,select,textarea{font-family:var(--font-b);}
+
+  /* ---------- utility ---------- */
+  .hidden{display:none !important;}
+  .btn{
+    background:var(--brass); color:var(--bg3); border:none; border-radius:3px;
+    padding:9px 16px; font-weight:600; letter-spacing:.02em; font-size:13px;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .btn:hover{background:var(--brass-bright);}
+  .btn:active{transform:translateY(1px);}
+  .btn.ghost{background:transparent; color:var(--brass-bright); border:1px solid var(--line);}
+  .btn.ghost:hover{border-color:var(--brass-bright); background:rgba(198,161,91,.08);}
+  .btn.danger{background:var(--red-flag); color:#fff;}
+  .btn.small{padding:5px 10px; font-size:12px;}
+  .card{
+    background:var(--bg2); border:1px solid var(--line); border-radius:6px;
+    box-shadow:var(--shadow);
+  }
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--brass-bright); margin-bottom:5px;}
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--bg3); border:1px solid var(--line); color:var(--parchment);
+    border-radius:4px; padding:9px 10px; font-size:14px;
+  }
+  .field textarea{resize:vertical; min-height:60px;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--brass-bright); outline-offset:1px;}
+  .muted{color:#B9C4B6; font-size:12.5px;}
+  .err{color:#FF9C90; font-size:13px; margin-top:8px;}
+  .ok{color:#9CDDAE; font-size:13px; margin-top:8px;}
+  .badge{display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:.03em;}
+  h1,h2,h3{font-family:var(--font-d); font-weight:600; margin:0 0 10px;}
+
+  /* ---------- login ---------- */
+  #loginScreen{min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(198,161,91,.09), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(198,161,91,.07), transparent 40%),
+      var(--bg);
+  }
+  .login-card{width:360px; padding:36px 34px; text-align:center;}
+  .seal{width:56px;height:56px;margin:0 auto 14px; border:2px solid var(--brass); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-d); font-size:22px; color:var(--brass-bright);}
+  .login-card h1{font-size:22px; letter-spacing:.04em;}
+  .login-card .sub{color:#B9C4B6; font-size:12.5px; margin-bottom:22px;}
+
+  /* ---------- app shell ---------- */
+  #app{display:none;}
+  header.topbar{
+    background:var(--bg3); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 22px;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand h1{font-size:18px; margin:0; letter-spacing:.05em;}
+  .brand .tag{font-size:10.5px; color:var(--brass); letter-spacing:.12em; text-transform:uppercase;}
+  .who{display:flex; align-items:center; gap:12px; font-size:13px;}
+  .who .id{color:var(--brass-bright); font-family:var(--font-m);}
+
+  .ribbon{
+    background:linear-gradient(90deg,#8a6a2e,#C6A15B,#8a6a2e);
+    color:#241c0c; font-weight:700; font-size:13px; text-align:center;
+    padding:6px 10px; letter-spacing:.02em; overflow:hidden; white-space:nowrap;
+  }
+  .ribbon span{display:inline-block; transition:opacity .6s ease;}
+
+  .flagbar{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:16px 22px 0;}
+  .flag{border-radius:6px; padding:12px 14px; min-height:92px; box-shadow:var(--shadow);}
+  .flag h3{font-size:12.5px; text-transform:uppercase; letter-spacing:.1em; margin:0 0 8px; font-family:var(--font-b); font-weight:700;}
+  .flag.red{background:linear-gradient(180deg,#7c2a25,#5c1e1a); border:1px solid #d98a83; animation:pulseRed 3s ease-in-out infinite;}
+  .flag.green{background:linear-gradient(180deg,#2f5c3c,#22432c); border:1px solid #8fc6a0;}
+  .flag.white{background:var(--white-flag); color:var(--ink); border:1px solid #cfc7a8;}
+  .flag .item{font-size:12.5px; padding:4px 0; border-top:1px dashed rgba(255,255,255,.18);}
+  .flag.white .item{border-top:1px dashed rgba(0,0,0,.15);}
+  .flag .item:first-child{border-top:none;}
+  .flag .empty{font-size:12px; opacity:.7; font-style:italic;}
+  @keyframes pulseRed{0%,100%{box-shadow:0 0 0 rgba(166,52,46,0);}50%{box-shadow:0 0 22px rgba(166,52,46,.55);}}
+
+  .layout{display:grid; grid-template-columns:1.7fr 1fr; gap:16px; padding:16px 22px 28px; align-items:start;}
+  @media (max-width:980px){.layout{grid-template-columns:1fr;}}
+
+  .panel{padding:16px;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--brass-bright);
+    padding:6px 8px; border-bottom:1px solid var(--line);}
+  td{padding:8px; border-bottom:1px solid rgba(198,161,91,.14); vertical-align:top;}
+  tr.rowlink{cursor:pointer;}
+  tr.rowlink:hover{background:rgba(198,161,91,.06);}
+
+  .stamp{padding:3px 9px; border-radius:3px; font-size:11px; font-weight:700; letter-spacing:.02em; display:inline-block;}
+  .stamp.In{background:#2f5c3c; color:#dff5e4;}
+  .stamp.Hover{background:#7a5a1e; color:#fbe7bd;}
+  .stamp.Out{background:#2d5570; color:#dceeff;}
+  .stamp.Discussion{background:#5b3d78; color:#eeddff;}
+  .stamp.Dead{background:#3a3a3a; color:#c9c9c9;}
+
+  .widget{padding:14px; margin-bottom:14px;}
+  .widget h3{font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--brass-bright); font-family:var(--font-b);}
+  .wlist{max-height:150px; overflow-y:auto;}
+  .wrow{font-size:12.5px; padding:6px 0; border-top:1px solid rgba(198,161,91,.14);}
+  .wrow:first-child{border-top:none;}
+  .wrow .t{font-weight:600;}
+  .wrow .d{color:#B9C4B6;}
+  .tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;}
+  .tab{padding:4px 9px; border-radius:20px; font-size:11px; border:1px solid var(--line); background:transparent; color:var(--parchment);}
+  .tab.active{background:var(--brass); color:var(--bg3); border-color:var(--brass); font-weight:700;}
+
+  /* remarks ledger */
+  .ledger{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px;}
+  .slot{border-radius:4px; padding:8px; min-height:64px; font-size:11.5px;}
+  .slot.filled{background:var(--parchment); color:var(--ink);}
+  .slot.empty{background:#0c0c0b; color:#3a3a37; display:flex; align-items:center; justify-content:center;}
+  .slot .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:3px;}
+  .slot.empty .lbl{color:#3a3a37;}
+  .slot textarea{width:100%; border:none; background:transparent; font-size:11.5px; resize:vertical; min-height:40px; padding:0; color:inherit;}
+  .slot textarea:focus{outline:1px solid var(--brass);}
+
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-start; justify-content:center;
+    padding:40px 16px; overflow:auto; z-index:50;}
+  .modal{width:min(760px,96vw); padding:22px;}
+  .modal-close{float:right;}
+  .status-row{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;}
+  .toast{position:fixed; bottom:18px; right:18px; z-index:80;}
+  footer.foot{text-align:center; padding:16px; font-size:11px; color:#6f7a70;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="card login-card">
+    <div class="seal">OM</div>
+    <h1>OFFICE MANAGER</h1>
+    <div class="sub">Sign in with your desk ID</div>
+    <div class="field" style="text-align:left">
+      <label>ID</label>
+      <input id="loginId" placeholder="e.g. L1A" autocomplete="username">
+    </div>
+    <div class="field" style="text-align:left">
+      <label>Password</label>
+      <input id="loginPw" type="password" autocomplete="current-password">
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Sign In</button>
+    <div id="loginErr" class="err"></div>
+  </div>
+</div>
+
+<!-- ========== FORCED PASSWORD CHANGE ========== -->
+<div id="pwScreen" class="hidden" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
+  <div class="card login-card">
+    <h1 style="font-size:19px;">Set a New Password</h1>
+    <div class="sub">First login — choose a password only you know.</div>
+    <div class="field" style="text-align:left"><label>Current (starting) password</label><input id="pwOld" type="password"></div>
+    <div class="field" style="text-align:left"><label>New password (6+ characters)</label><input id="pwNew" type="password"></div>
+    <button class="btn" style="width:100%" onclick="doChangePassword()">Update Password</button>
+    <div id="pwErr" class="err"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><h1>OFFICE MANAGER</h1><span class="tag" id="brandRole"></span></div>
+    <div class="who">
+      <span class="id" id="whoId"></span>
+      <button class="btn ghost small" id="adminBtn" onclick="showAdmin()">Admin</button>
+      <button class="btn ghost small" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="ribbon"><span id="quoteText">Loading…</span></div>
+
+  <div class="flagbar">
+    <div class="flag red"><h3>Red · Today</h3><div id="flagRed"></div></div>
+    <div class="flag green"><h3>Green · Tomorrow</h3><div id="flagGreen"></div></div>
+    <div class="flag white"><h3>White · Day After</h3><div id="flagWhite"></div></div>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: Docket register -->
+    <div class="card panel">
+      <div class="panel-head">
+        <h2 style="font-size:16px;margin:0;">File Docket Register</h2>
+        <button class="btn small" onclick="openNewDocket()">+ New Docket</button>
+      </div>
+      <table>
+        <thead><tr><th>Serial</th><th>Subject</th><th>Status</th><th>Since</th><th>Marked To</th><th>Class.</th></tr></thead>
+        <tbody id="docketRows"></tbody>
+      </table>
+      <div id="docketEmpty" class="muted hidden" style="padding:14px 0;">No dockets yet. Create the first one.</div>
+    </div>
+
+    <!-- RIGHT: widgets -->
+    <div>
+      <div class="card widget">
+        <h3>Birthdays &amp; Anniversaries — this month + next 3</h3>
+        <div class="wlist" id="wBirthdays"></div>
+      </div>
+      <div class="card widget">
+        <h3>Leave &amp; Health</h3>
+        <div class="wlist" id="wLeave"></div>
+      </div>
+      <div class="card widget">
+        <h3>Transfers &amp; Temporary Duty</h3>
+        <div class="wlist" id="wMovement"></div>
+      </div>
+      <div class="card widget">
+        <h3>Meetings</h3>
+        <div class="wlist" id="wMeetings"></div>
+      </div>
+      <div class="card widget">
+        <h3>Tasks</h3>
+        <div class="tabs" id="taskTabs"></div>
+        <div class="wlist" id="wTasks"></div>
+      </div>
+      <div class="card widget">
+        <h3>Duties, Visits &amp; Inventions</h3>
+        <div class="wlist" id="wOther"></div>
+      </div>
+      <div class="card widget">
+        <h3>Post a Daily Update</h3>
+        <div class="field"><label>Category</label>
+          <select id="evCat"></select>
+        </div>
+        <div class="field"><label>Title</label><input id="evTitle" maxlength="200"></div>
+        <div class="field"><label>Detail (optional)</label><textarea id="evDetail" maxlength="1000"></textarea></div>
+        <div class="grid2">
+          <div class="field"><label>Date</label><input id="evDate" type="date"></div>
+          <div class="field" id="evRecurringWrap"><label>Repeats yearly?</label>
+            <select id="evRecurring"><option value="0">No</option><option value="1">Yes</option></select>
+          </div>
+        </div>
+        <button class="btn" style="width:100%" onclick="postEvent()">Update</button>
+        <div id="evMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">Office Manager · By Aryan</footer>
+</div>
+
+<!-- ============ Docket detail modal ============ -->
+<div id="docketModalBg" class="modal-bg hidden">
+  <div class="card modal">
+    <button class="btn ghost small modal-close" onclick="closeModal('docketModalBg')">Close</button>
+    <h2 id="dkSubject" style="font-size:18px;"></h2>
+    <div class="muted" id="dkMeta"></div>
+    <div class="status-row" id="dkStatusRow"></div>
+    <h3 style="font-size:13px;margin-top:16px;">Remarks Trail — Remark 1/2 (Level 1), then Level 2 → 11</h3>
+    <div class="muted" style="margin-bottom:8px;">A solid black box means that level has not entered a remark yet.</div>
+    <div class="ledger" id="dkLedger"></div>
+  </div>
+</div>
+
+<!-- ============ New Docket modal ============ -->
+<div id="newDocketBg" class="modal-bg hidden">
+  <div class="card modal" style="width:min(480px,96vw);">
+    <button class="btn ghost small modal-close" onclick="closeModal('newDocketBg')">Close</button>
+    <h2 style="font-size:17px;">New Docket</h2>
+    <div class="field"><label>Serial No</label><input id="ndSerial"></div>
+    <div class="field"><label>Subject</label><input id="ndSubject"></div>
+    <div class="grid2">
+      <div class="field"><label>Pages</label><input id="ndPages" type="number" min="0"></div>
+      <div class="field"><label>Classification</label>
+        <select id="ndClass"></select>
+      </div>
+    </div>
+    <div class="field"><label>Marked For Whom</label><input id="ndMarked"></div>
+    <button class="btn" style="width:100%" onclick="createDocket()">Create Docket</button>
+    <div id="ndErr" class="err"></div>
+  </div>
+</div>
+
+<!-- ============ Admin modal ============ -->
+<div id="adminBg" class="modal-bg hidden">
+  <div class="card modal" style="width:min(920px,97vw);">
+    <button class="btn ghost small modal-close" onclick="closeModal('adminBg')">Close</button>
+    <h2 style="font-size:18px;">Admin</h2>
+    <div class="tabs">
+      <button class="tab active" data-tab="roster" onclick="adminTab('roster')">Roster</button>
+      <button class="tab" data-tab="quotes" onclick="adminTab('quotes')">Quotes</button>
+      <button class="tab" data-tab="audit" onclick="adminTab('audit')">Audit Log</button>
+    </div>
+    <div id="adminRoster">
+      <table>
+        <thead><tr><th>ID</th><th>Level</th><th>Title</th><th>Status</th><th>Must Change PW</th><th>Actions</th></tr></thead>
+        <tbody id="rosterRows"></tbody>
+      </table>
+    </div>
+    <div id="adminQuotes" class="hidden">
+      <div class="field"><label>New quote</label><input id="newQuote"></div>
+      <button class="btn small" onclick="addQuote()">Add Quote</button>
+      <div id="quoteRows" style="margin-top:12px;"></div>
+    </div>
+    <div id="adminAudit" class="hidden">
+      <div id="auditRows" style="max-height:420px; overflow:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========================================================================
+   Office Manager — frontend logic (vanilla JS, no build step, no CDN)
+   ======================================================================== */
+let ME = null;
+const CATEGORY_LABELS = {
+  short_leave:"Short Leave", long_leave:"Long Leave", health:"Health / Sick",
+  birthday:"Birthday", anniversary:"Anniversary", transfer:"Transfer",
+  temporary_duty:"Temporary Duty", meeting:"Meeting",
+  task_today:"Task — Today", task_tomorrow:"Task — Tomorrow", task_week:"Task — This Week",
+  task_month:"Task — This Month", task_year:"Task — This Year",
+  duty:"Duty", visit:"Visit", invention:"Invention"
+};
+const CLASSIFICATIONS = ["Unclassified","Restricted","Confidential","Secret","Top Secret"];
+const STATUSES = ["File In","File Hover","File Out","File Discussion","Dead File"];
+const REMARK_LABELS = {remark1:"Remark 1", remark2:"Remark 2"};
+for(let n=2;n<=11;n++) REMARK_LABELS["level"+n] = "Level "+n;
+
+async function api(path, opts={}){
+  const res = await fetch(path, {
+    method: opts.method || "GET",
+    headers: {"Content-Type":"application/json"},
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  let data = null;
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok){
+    const msg = (data && data.detail) ? data.detail : ("Error " + res.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function timeAgo(iso){
+  const then = new Date(iso).getTime();
+  const diff = Math.max(0, Date.now() - then);
+  const mins = Math.floor(diff/60000);
+  if(mins < 60) return mins + "m";
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs + "h " + (mins%60) + "m";
+  const days = Math.floor(hrs/24);
+  return days + "d " + (hrs%24) + "h";
+}
+
+/* ---------------- auth ---------------- */
+async function doLogin(){
+  const id = document.getElementById("loginId").value.trim();
+  const pw = document.getElementById("loginPw").value;
+  const errEl = document.getElementById("loginErr");
+  errEl.textContent = "";
+  try{
+    const me = await api("/api/login", {method:"POST", body:{id, password: pw}});
+    ME = me;
+    if(me.must_change_password){
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("pwScreen").classList.remove("hidden");
+    } else {
+      enterApp();
+    }
+  }catch(e){ errEl.textContent = e.message; }
+}
+
+async function doChangePassword(){
+  const oldPw = document.getElementById("pwOld").value;
+  const newPw = document.getElementById("pwNew").value;
+  const errEl = document.getElementById("pwErr");
+  errEl.textContent = "";
+  if(newPw.length < 6){ errEl.textContent = "New password needs at least 6 characters."; return; }
+  try{
+    await api("/api/change-password", {method:"POST", body:{old_password: oldPw, new_password:newPw}});
+    document.getElementById("pwScreen").classList.add("hidden");
+    ME.must_change_password = false;
+    enterApp();
+  }catch(e){ errEl.textContent = e.message; }
+}
+
+async function doLogout(){
+  await api("/api/logout", {method:"POST"});
+  location.reload();
+}
+
+async function tryResumeSession(){
+  try{
+    const me = await api("/api/me");
+    ME = me;
+    if(me.must_change_password){
+      document.getElementById("pwScreen").classList.remove("hidden");
+    } else {
+      enterApp();
+    }
+  }catch(e){ /* not logged in — show login screen (default) */ }
+}
+
+/* ---------------- app shell ---------------- */
+function enterApp(){
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("pwScreen").classList.add("hidden");
+  document.getElementById("app").style.display = "block";
+  document.getElementById("whoId").textContent = ME.id + (ME.display_name ? " · " + ME.display_name : "");
+  document.getElementById("brandRole").textContent = "Level " + ME.level + " · " + ME.role_title;
+  document.getElementById("adminBtn").classList.toggle("hidden", !ME.is_admin);
+  populateSelectors();
+  refreshAll();
+  setInterval(refreshAll, 20000); // light auto-refresh so updates propagate to every desk
+  startQuoteRotation();
+}
+
+function populateSelectors(){
+  const evCat = document.getElementById("evCat");
+  evCat.innerHTML = Object.entries(CATEGORY_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+  evCat.onchange = () => {
+    const isDateRecurring = evCat.value === "birthday" || evCat.value === "anniversary";
+    document.getElementById("evRecurringWrap").style.display = isDateRecurring ? "block" : "none";
+  };
+  evCat.onchange();
+  const ndClass = document.getElementById("ndClass");
+  ndClass.innerHTML = CLASSIFICATIONS.map(c=>`<option value="${c}">${c}</option>`).join("");
+}
+
+async function refreshAll(){
+  await Promise.all([loadAlerts(), loadWidgets(), loadDockets(), loadQuotesIfNeeded()]);
+}
+
+/* ---------------- quotes ribbon ---------------- */
+let QUOTES = []; let quoteIdx = 0;
+async function loadQuotesIfNeeded(){
+  if(QUOTES.length) return;
+  try{ QUOTES = await api("/api/events/quotes"); }catch(e){ QUOTES = []; }
+}
+function startQuoteRotation(){
+  const el = document.getElementById("quoteText");
+  function tick(){
+    if(!QUOTES.length){ el.textContent = "Welcome to Office Manager."; return; }
+    el.style.opacity = 0;
+    setTimeout(()=>{ el.textContent = QUOTES[quoteIdx % QUOTES.length].text; quoteIdx++; el.style.opacity = 1; }, 400);
+  }
+  tick();
+  setInterval(tick, 6000);
+}
+
+/* ---------------- alert flag bar ---------------- */
+async function loadAlerts(){
+  let a;
+  try{ a = await api("/api/events/alerts"); }catch(e){ return; }
+  renderFlag("flagRed", a.red);
+  renderFlag("flagGreen", a.green);
+  renderFlag("flagWhite", a.white);
+}
+function renderFlag(elId, items){
+  const el = document.getElementById(elId);
+  if(!items.length){ el.innerHTML = '<div class="empty">Nothing flagged.</div>'; return; }
+  el.innerHTML = items.map(i => `<div class="item"><b>${CATEGORY_LABELS[i.category]||i.category}</b> — ${escapeHtml(i.title)}</div>`).join("");
+}
+
+/* ---------------- dashboard widgets ---------------- */
+let currentTaskTab = "task_today";
+async function loadWidgets(){
+  let events, bdays;
+  try{
+    [events, bdays] = await Promise.all([api("/api/events"), api("/api/events/birthdays-anniversaries")]);
+  }catch(e){ return; }
+
+  renderList("wBirthdays", bdays.map(e => ({...e, sub: "Next: " + e.occurs_on})));
+  renderList("wLeave", events.filter(e => ["short_leave","long_leave","health"].includes(e.category)));
+  renderList("wMovement", events.filter(e => ["transfer","temporary_duty"].includes(e.category)));
+  renderList("wMeetings", events.filter(e => e.category === "meeting"));
+  renderList("wOther", events.filter(e => ["duty","visit","invention"].includes(e.category)));
+
+  const taskCats = ["task_today","task_tomorrow","task_week","task_month","task_year"];
+  const tabsEl = document.getElementById("taskTabs");
+  tabsEl.innerHTML = taskCats.map(c => `<button class="tab ${c===currentTaskTab?'active':''}" onclick="setTaskTab('${c}')">${CATEGORY_LABELS[c].replace('Task — ','')}</button>`).join("");
+  renderList("wTasks", events.filter(e => e.category === currentTaskTab));
+}
+function setTaskTab(cat){ currentTaskTab = cat; loadWidgets(); }
+
+function renderList(elId, items){
+  const el = document.getElementById(elId);
+  if(!items.length){ el.innerHTML = '<div class="muted" style="padding:6px 0;">Nothing on record.</div>'; return; }
+  el.innerHTML = items.map(e => `
+    <div class="wrow">
+      <div class="t">${escapeHtml(e.title)} <span class="muted">· ${e.desk_id}</span></div>
+      <div class="d">${e.sub || e.event_date}${e.detail? " — "+escapeHtml(e.detail):""}</div>
+    </div>`).join("");
+}
+
+async function postEvent(){
+  const category = document.getElementById("evCat").value;
+  const title = document.getElementById("evTitle").value.trim();
+  const detail = document.getElementById("evDetail").value.trim();
+  const event_date = document.getElementById("evDate").value;
+  const recurring_yearly = document.getElementById("evRecurring").value === "1";
+  const msg = document.getElementById("evMsg");
+  msg.className = ""; msg.textContent = "";
+  if(!title || !event_date){ msg.className="err"; msg.textContent="Title and date are required."; return; }
+  try{
+    await api("/api/events", {method:"POST", body:{category, title, detail, event_date, recurring_yearly}});
+    document.getElementById("evTitle").value = "";
+    document.getElementById("evDetail").value = "";
+    msg.className = "ok"; msg.textContent = "Posted. Visible to every level now.";
+    refreshAll();
+  }catch(e){ msg.className="err"; msg.textContent = e.message; }
+}
+
+/* ---------------- docket register ---------------- */
+let DOCKETS = [];
+async function loadDockets(){
+  try{ DOCKETS = await api("/api/dockets"); }catch(e){ return; }
+  const rows = document.getElementById("docketRows");
+  document.getElementById("docketEmpty").classList.toggle("hidden", DOCKETS.length>0);
+  rows.innerHTML = DOCKETS.map(d => `
+    <tr class="rowlink" onclick="openDocket('${d.id}')">
+      <td>${escapeHtml(d.serial_no)}</td>
+      <td>${escapeHtml(d.subject)}</td>
+      <td><span class="stamp ${statusClass(d.current_status)}">${d.current_status}</span></td>
+      <td>${timeAgo(d.status_since)}</td>
+      <td>${escapeHtml(d.marked_to||"—")}</td>
+      <td>${escapeHtml(d.classification||"—")}</td>
+    </tr>`).join("");
+}
+function statusClass(s){ return {"File In":"In","File Hover":"Hover","File Out":"Out","File Discussion":"Discussion","Dead File":"Dead"}[s]||"In"; }
+
+function openNewDocket(){
+  document.getElementById("ndSerial").value = "";
+  document.getElementById("ndSubject").value = "";
+  document.getElementById("ndPages").value = "";
+  document.getElementById("ndMarked").value = "";
+  document.getElementById("ndErr").textContent = "";
+  document.getElementById("newDocketBg").classList.remove("hidden");
+}
+async function createDocket(){
+  const body = {
+    serial_no: document.getElementById("ndSerial").value.trim(),
+    subject: document.getElementById("ndSubject").value.trim(),
+    pages: document.getElementById("ndPages").value ? parseInt(document.getElementById("ndPages").value) : null,
+    classification: document.getElementById("ndClass").value,
+    marked_to: document.getElementById("ndMarked").value.trim(),
+  };
+  const errEl = document.getElementById("ndErr");
+  if(!body.serial_no || !body.subject){ errEl.textContent = "Serial No and Subject are required."; return; }
+  try{
+    await api("/api/dockets", {method:"POST", body});
+    closeModal("newDocketBg");
+    loadDockets();
+  }catch(e){ errEl.textContent = e.message; }
+}
+
+let OPEN_DOCKET = null;
+async function openDocket(id){
+  try{ OPEN_DOCKET = await api("/api/dockets/"+id); }catch(e){ return; }
+  document.getElementById("dkSubject").textContent = OPEN_DOCKET.serial_no + " — " + OPEN_DOCKET.subject;
+  document.getElementById("dkMeta").textContent =
+    `Initiated by ${OPEN_DOCKET.initiated_by} on ${new Date(OPEN_DOCKET.initiated_at).toLocaleString()} · ` +
+    `${OPEN_DOCKET.pages||"?"} pages · ${OPEN_DOCKET.classification||"Unclassified"} · Marked to: ${OPEN_DOCKET.marked_to||"—"}`;
+
+  document.getElementById("dkStatusRow").innerHTML = STATUSES.map(s =>
+    `<button class="btn small ${s===OPEN_DOCKET.current_status?'':'ghost'}" onclick="setDocketStatus('${s}')">${s}</button>`
+  ).join("");
+
+  const ledger = document.getElementById("dkLedger");
+  ledger.innerHTML = OPEN_DOCKET.remarks.map(r => {
+    const canEdit = ME.is_admin || ME.level === r.level;
+    if(r.filled){
+      return `<div class="slot filled"><div class="lbl">${REMARK_LABELS[r.slot]} · L${r.level}</div>
+        ${escapeHtml(r.text)}<div class="muted" style="margin-top:4px;font-size:10px;">${r.entered_by} · ${new Date(r.entered_at).toLocaleDateString()}</div></div>`;
+    }
+    if(canEdit){
+      return `<div class="slot filled"><div class="lbl">${REMARK_LABELS[r.slot]} · L${r.level} (you)</div>
+        <textarea id="rmk_${r.slot}" placeholder="Enter remark…"></textarea>
+        <button class="btn small" style="margin-top:4px;" onclick="saveRemark('${r.slot}')">Save</button></div>`;
+    }
+    return `<div class="slot empty"><div class="lbl">${REMARK_LABELS[r.slot]} · L${r.level}</div></div>`;
+  }).join("");
+
+  document.getElementById("docketModalBg").classList.remove("hidden");
+}
+async function saveRemark(slot){
+  const text = document.getElementById("rmk_"+slot).value;
+  try{
+    await api(`/api/dockets/${OPEN_DOCKET.id}/remarks/${slot}`, {method:"PUT", body:{text}});
+    openDocket(OPEN_DOCKET.id);
+    loadDockets();
+  }catch(e){ alert(e.message); }
+}
+async function setDocketStatus(status){
+  try{
+    await api(`/api/dockets/${OPEN_DOCKET.id}/status`, {method:"POST", body:{status}});
+    openDocket(OPEN_DOCKET.id);
+    loadDockets();
+  }catch(e){ alert(e.message); }
+}
+
+function closeModal(id){ document.getElementById(id).classList.add("hidden"); }
+
+/* ---------------- admin ---------------- */
+function showAdmin(){ document.getElementById("adminBg").classList.remove("hidden"); adminTab("roster"); }
+function adminTab(name){
+  document.querySelectorAll("#adminBg .tab").forEach(t => t.classList.toggle("active", t.dataset.tab===name));
+  ["roster","quotes","audit"].forEach(n => document.getElementById("admin"+cap(n)).classList.toggle("hidden", n!==name));
+  if(name==="roster") loadRoster();
+  if(name==="quotes") loadQuotesAdmin();
+  if(name==="audit") loadAudit();
+}
+function cap(s){ return s[0].toUpperCase()+s.slice(1); }
+
+async function loadRoster(){
+  let users;
+  try{ users = await api("/api/admin/users"); }catch(e){ return; }
+  document.getElementById("rosterRows").innerHTML = users.map(u => `
+    <tr>
+      <td>${u.id}</td><td>${u.level}</td><td>${escapeHtml(u.role_title)}</td>
+      <td>${u.active ? "Active":"Disabled"}</td>
+      <td>${u.must_change_password?"Yes":"No"}</td>
+      <td>
+        <button class="btn small ghost" onclick="resetPw('${u.id}')">Reset PW</button>
+        <button class="btn small ghost" onclick="toggleActive('${u.id}', ${u.active})">${u.active?"Disable":"Enable"}</button>
+        <button class="btn small ghost" onclick="editTitle('${u.id}', '${escapeAttr(u.role_title)}')">Rename</button>
+      </td>
+    </tr>`).join("");
+}
+async function resetPw(id){
+  try{
+    const r = await api(`/api/admin/users/${id}/reset-password`, {method:"POST"});
+    alert(`New starting password for ${id}: ${r.new_password}\n(They must change it on next login.)`);
+  }catch(e){ alert(e.message); }
+}
+async function toggleActive(id, active){
+  const ep = active ? "deactivate" : "activate";
+  try{ await api(`/api/admin/users/${id}/${ep}`, {method:"POST"}); loadRoster(); }catch(e){ alert(e.message); }
+}
+async function editTitle(id, current){
+  const t = prompt("New role title for " + id, current);
+  if(t===null || !t.trim()) return;
+  try{ await api(`/api/admin/users/${id}/role-title`, {method:"PUT", body:{role_title:t.trim()}}); loadRoster(); }catch(e){ alert(e.message); }
+}
+
+async function loadQuotesAdmin(){
+  let qs;
+  try{ qs = await api("/api/events/quotes"); }catch(e){ return; }
+  document.getElementById("quoteRows").innerHTML = qs.map(q => `
+    <div class="wrow" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>${escapeHtml(q.text)}</span>
+      <button class="btn small danger" onclick="removeQuote(${q.id})">Remove</button>
+    </div>`).join("");
+}
+async function addQuote(){
+  const t = document.getElementById("newQuote").value.trim();
+  if(!t) return;
+  try{ await api("/api/admin/quotes", {method:"POST", body:{text:t}}); document.getElementById("newQuote").value=""; loadQuotesAdmin(); QUOTES=[]; }catch(e){ alert(e.message); }
+}
+async function removeQuote(id){
+  try{ await api(`/api/admin/quotes/${id}`, {method:"DELETE"}); loadQuotesAdmin(); QUOTES=[]; }catch(e){ alert(e.message); }
+}
+
+async function loadAudit(){
+  let rows;
+  try{ rows = await api("/api/admin/audit-log?limit=200"); }catch(e){ return; }
+  document.getElementById("auditRows").innerHTML = `<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td>${new Date(r.at).toLocaleString()}</td><td>${r.actor_id||"—"}</td><td>${r.action}</td><td>${r.target||"—"}</td><td>${escapeHtml(r.detail||"")}</td></tr>`).join("") +
+    `</tbody></table>`;
+}
+
+/* ---------------- helpers ---------------- */
+function escapeHtml(s){ return (s==null?"":String(s)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/'/g,"&#39;"); }
+
+document.getElementById("evDate") && (document.getElementById("evDate").valueAsDate = new Date());
+tryResumeSession();
+</script>
+</body>
+</html>
